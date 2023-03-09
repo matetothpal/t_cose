@@ -2,6 +2,7 @@
  *  t_cose_sign_verify_test.h
  *
  * Copyright 2019, 2022, Laurence Lundblade
+ * Copyright (c) 2023, Arm Limited. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -69,6 +70,7 @@ int_fast32_t sign_verify_bad_auxiliary_buffer(void);
  * Test creation and verification of COSE_Sign with multiple COSE_Signatures
  */
 int_fast32_t sign_verify_multi(void);
+int_fast32_t sign_verify_multi_restartable(void);
 
 
 #endif /* t_cose_sign_verify_test_h */

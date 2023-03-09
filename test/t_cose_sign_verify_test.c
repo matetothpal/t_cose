@@ -2,7 +2,7 @@
  *  t_cose_sign_verify_test.c
  *
  * Copyright 2019-2022, Laurence Lundblade
- * Copyright (c) 2022, Arm Limited. All rights reserved.
+ * Copyright (c) 2022-2023, Arm Limited. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -14,6 +14,7 @@
 #include "t_cose/t_cose_sign1_verify.h"
 #include "t_cose/q_useful_buf.h"
 #include "init_keys.h"
+#include "t_cose_crypto_test.h"
 #include "t_cose_sign_verify_test.h"
 
 #include "t_cose_crypto.h" /* Just for t_cose_crypto_sig_size() */
@@ -1082,6 +1083,134 @@ int_fast32_t sign_verify_multi(void)
 
 
     if(q_useful_buf_compare(verified_payload, Q_USEFUL_BUF_FROM_SZ_LITERAL("payload"))){
+        return 5;
+    }
+
+
+    return 0;
+}
+
+#include "../crypto_adapters/t_cose_test_crypto.h"
+#include "../crypto_adapters/t_cose_psa_crypto.h"
+int_fast32_t sign_verify_multi_restartable(void)
+{
+    enum t_cose_err_t   result;
+    struct t_cose_key   key_pair1;
+    struct t_cose_key   key_pair2;
+    struct t_cose_sign_sign_ctx  sign_ctx;
+    struct t_cose_signature_sign_main  signer1;
+    struct t_cose_signature_sign_main  signer2;
+    Q_USEFUL_BUF_MAKE_STACK_UB(    signed_cose_buffer, 300);
+    struct q_useful_buf_c          signed_cose;
+    struct t_cose_sign_verify_ctx  verify_ctx;
+    struct t_cose_signature_verify_main verify1;
+    struct t_cose_signature_verify_main verify2;
+    struct q_useful_buf_c          verified_payload;
+    struct q_useful_buf            empty_buf;
+    struct t_cose_signature_sign_main_restart_ctx rst_ctx;
+    size_t                         counter;
+
+    if(!t_cose_is_algorithm_supported(T_COSE_ALGORITHM_ES512)) {
+        /* T_COSE_ALGORITHM_ES512 is required for this test */
+        return 0;
+    }
+
+    DECLARE_RESTARTABLE_CONTEXT(crypto_context);
+
+    result = init_fixed_test_signing_key(T_COSE_ALGORITHM_ES256, &key_pair1);
+    if(result) {
+        return 1000 + (int32_t)result;
+    }
+
+    result = init_fixed_test_signing_key(T_COSE_ALGORITHM_ES512, &key_pair2);
+    if(result) {
+        return 1000 + (int32_t)result;
+    }
+
+    t_cose_sign_sign_init(&sign_ctx, T_COSE_OPT_MESSAGE_TYPE_SIGN);
+
+    t_cose_signature_sign_main_init(&signer1, T_COSE_ALGORITHM_ES256);
+    t_cose_signature_sign_main_set_signing_key(
+                                        &signer1,
+                                        key_pair1,
+                                        Q_USEFUL_BUF_FROM_SZ_LITERAL("kid1"));
+    t_cose_signature_sign_main_set_restartable(&signer1, &rst_ctx);
+    t_cose_signature_sign_main_set_crypto_context(&signer1, &crypto_context);
+
+    t_cose_sign_add_signer(&sign_ctx, (struct t_cose_signature_sign *)&signer1);
+
+    t_cose_signature_sign_main_init(&signer2, T_COSE_ALGORITHM_ES512);
+    t_cose_signature_sign_main_set_signing_key(
+                                        &signer2,
+                                        key_pair2,
+                                        Q_USEFUL_BUF_FROM_SZ_LITERAL("kid2"));
+    t_cose_signature_sign_main_set_restartable(&signer2, &rst_ctx);
+    t_cose_signature_sign_main_set_crypto_context(&signer2, &crypto_context);
+    t_cose_sign_add_signer(&sign_ctx, (struct t_cose_signature_sign *)&signer2);
+
+
+    empty_buf = (struct q_useful_buf){NULL, SIZE_MAX};
+
+    result = t_cose_sign_sign(&sign_ctx,
+                               NULL_Q_USEFUL_BUF_C,
+                               Q_USEFUL_BUF_FROM_SZ_LITERAL("payload"),
+                               empty_buf,
+                              &signed_cose);
+    if(result) {
+        return 1;
+    }
+
+    counter = 0;
+    do {
+        result = t_cose_sign_sign(&sign_ctx,
+                               NULL_Q_USEFUL_BUF_C,
+                               Q_USEFUL_BUF_FROM_SZ_LITERAL("payload"),
+                               signed_cose_buffer,
+                              &signed_cose);
+        counter++;
+    } while(result == T_COSE_ERR_SIG_IN_PROGRESS);
+
+    if(result) {
+        return 2;
+    }
+    if(counter <= 1) {
+        return 2000;
+    }
+
+    t_cose_sign_verify_init(&verify_ctx, T_COSE_OPT_MESSAGE_TYPE_SIGN |
+                                         T_COSE_VERIFY_ALL_SIGNATURES);
+
+    t_cose_signature_verify_main_init(&verify1);
+    t_cose_signature_verify_main_set_key(&verify1, key_pair1,
+                                         Q_USEFUL_BUF_FROM_SZ_LITERAL("kid1"));
+    t_cose_sign_add_verifier(&verify_ctx,
+                            (struct t_cose_signature_verify *)&verify1);
+
+    t_cose_signature_verify_main_init(&verify2);
+    t_cose_signature_verify_main_set_key(&verify2, key_pair2,
+                                         Q_USEFUL_BUF_FROM_SZ_LITERAL("kid2"));
+    t_cose_sign_add_verifier(&verify_ctx,
+                             (struct t_cose_signature_verify *)&verify2);
+
+    result = t_cose_sign_verify(&verify_ctx,
+                                 signed_cose,
+                                 NULL_Q_USEFUL_BUF_C,
+                                &verified_payload,
+                                 NULL);
+
+#ifdef QCBOR_FOR_T_COSE_2
+    if(result) {
+        return 3;
+    }
+#else
+    if(result != T_COSE_ERR_CANT_PROCESS_MULTIPLE) {
+        return 33;
+    }
+#endif /* QCBOR_FOR_T_COSE_2 */
+
+
+    if(q_useful_buf_compare(verified_payload,
+                            Q_USEFUL_BUF_FROM_SZ_LITERAL("payload"))) {
         return 5;
     }
 

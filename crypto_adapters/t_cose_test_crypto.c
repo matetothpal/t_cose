@@ -17,6 +17,7 @@
 #include "t_cose_test_crypto.h"
 #include "t_cose_util.h"
 
+#define SIGN_ITERATION_COUNT 5
 
 /*
  * This file is stub crypto for initial bring up and test of t_cose.
@@ -138,8 +139,15 @@ t_cose_crypto_sign(int32_t                cose_algorithm_id,
         return cc->test_error;
     }
 
+    /* If restartable operation is requested */
     if(started) {
-        return T_COSE_ERR_UNSUPPORTED_RESTARTABLE_MODE;
+        /* If this is the first iteration */
+        if(!*started) {
+            cc->sign_iterations_left = SIGN_ITERATION_COUNT;
+        }
+        if(cc->sign_iterations_left-- > 1) {
+            return T_COSE_ERR_SIG_IN_PROGRESS;
+        }
     }
 
     /* This makes the short-circuit signature that is a concatenation

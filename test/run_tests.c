@@ -98,6 +98,7 @@ static test_entry s_tests[] = {
 #endif /* T_COSE_DISABLE_MAC0 */
 
     TEST_ENTRY(sign_verify_multi),
+    TEST_ENTRY(sign_verify_multi_restartable),
 
 #endif /* T_COSE_DISABLE_SIGN_VERIFY_TESTS */
 
@@ -138,8 +139,10 @@ static test_entry s_tests[] = {
 
     TEST_ENTRY(param_test),
 
-    TEST_ENTRY(base_encrypt_decrypt_test)
+    TEST_ENTRY(base_encrypt_decrypt_test),
 
+    TEST_ENTRY(restart_test),
+    TEST_ENTRY(restart_test_2_step)
 };
 
 

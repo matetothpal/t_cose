@@ -2,7 +2,7 @@
  *  t_cose_test.c
  *
  * Copyright 2019-2022, Laurence Lundblade
- * Copyright (c) 2021, Arm Limited. All rights reserved.
+ * Copyright (c) 2021-2023, Arm Limited. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -15,6 +15,7 @@
 #include "t_cose_make_test_messages.h"
 #include "t_cose/q_useful_buf.h"
 #include "t_cose_crypto.h" /* For signature size constant */
+#include "t_cose_crypto_test.h"
 #include "t_cose_util.h" /* for get_short_circuit_kid */
 #include "t_cose/t_cose_key.h"
 #include "init_keys.h" /* Use the same test keys as examples */
@@ -1820,6 +1821,147 @@ int_fast32_t crypto_context_test()
                                 NULL);
     if(result != 99) {
         return 2000 + (int32_t)result;
+    }
+
+
+    return 0;
+}
+
+#include "../crypto_adapters/t_cose_psa_crypto.h"
+int_fast32_t restart_test(void)
+{
+    struct t_cose_sign1_sign_ctx    sign_ctx;
+    enum t_cose_err_t               result;
+    Q_USEFUL_BUF_MAKE_STACK_UB(     signed_cose_buffer, 200);
+    struct q_useful_buf_c           signed_cose;
+    struct t_cose_sign1_verify_ctx  verify_ctx;
+    struct q_useful_buf_c           payload;
+    size_t                          counter;
+    struct t_cose_key               key_pair;
+    struct t_cose_signature_sign_main_restart_ctx rst_ctx;
+
+    DECLARE_RESTARTABLE_CONTEXT(crypto_context);
+    DECLARE_DEFAULT_ALGORITHM_ID(cose_algorithm_id);
+
+    init_fixed_test_signing_key(cose_algorithm_id, &key_pair);
+
+    /* --- Make COSE Sign1 object --- */
+    t_cose_sign1_sign_init(&sign_ctx, 0, cose_algorithm_id);
+    t_cose_sign1_set_signing_key(&sign_ctx, key_pair, NULL_Q_USEFUL_BUF_C);
+    t_cose_sign1_set_restart(&sign_ctx, &rst_ctx);
+    t_cose_sign1_set_crypto_context(&sign_ctx, &crypto_context);
+
+    counter = 0;
+    do {
+        result = t_cose_sign1_sign(&sign_ctx,
+                                    s_input_payload,
+                                    signed_cose_buffer,
+                                   &signed_cose);
+        counter++;
+    } while(result == T_COSE_ERR_SIG_IN_PROGRESS);
+
+    if(result) {
+        return 1000 + (int32_t)result;
+    }
+    if(counter <= 1) {
+        return 2000;
+    }
+    /* --- Done making COSE Sign1 object  --- */
+
+    /* --- Start verifying the COSE Sign1 object  --- */
+    /* Select short circuit signing */
+    t_cose_sign1_verify_init(&verify_ctx, T_COSE_OPT_ALLOW_SHORT_CIRCUIT);
+    t_cose_sign1_set_verification_key(&verify_ctx, key_pair);
+
+    /* Run the signature verification */
+    result = t_cose_sign1_verify(&verify_ctx,
+                                /* COSE to verify */
+                                signed_cose,
+                                /* The returned payload */
+                                &payload,
+                                /* Don't return parameters */
+                                NULL);
+    if(result) {
+        return 3000 + (int32_t)result;
+    }
+
+
+    return 0;
+}
+
+int_fast32_t restart_test_2_step(void)
+{
+    QCBOREncodeContext              cbor_encode;
+    QCBORError                      qcbor_result;
+    struct t_cose_sign1_sign_ctx    sign_ctx;
+    enum t_cose_err_t               result;
+    Q_USEFUL_BUF_MAKE_STACK_UB(     signed_cose_buffer, 200);
+    struct q_useful_buf_c           signed_cose;
+    struct t_cose_sign1_verify_ctx  verify_ctx;
+    struct q_useful_buf_c           payload;
+    int                             counter;
+    struct t_cose_key               key_pair;
+    struct t_cose_signature_sign_main_restart_ctx rst_ctx;
+
+    DECLARE_RESTARTABLE_CONTEXT(crypto_context);
+    DECLARE_DEFAULT_ALGORITHM_ID(cose_algorithm_id);
+
+    init_fixed_test_signing_key(cose_algorithm_id, &key_pair);
+
+    /* --- Make COSE Sign1 object --- */
+
+    t_cose_sign1_sign_init(&sign_ctx, 0, cose_algorithm_id);
+    t_cose_sign1_set_signing_key(&sign_ctx, key_pair, NULL_Q_USEFUL_BUF_C);
+    t_cose_sign1_set_restart(&sign_ctx, &rst_ctx);
+    t_cose_sign1_set_crypto_context(&sign_ctx, &crypto_context);
+
+    QCBOREncode_Init(&cbor_encode, signed_cose_buffer);
+
+    result = t_cose_sign1_encode_parameters(&sign_ctx, &cbor_encode);
+    if(result) {
+        return 1000 + (int32_t)result;
+    }
+
+    QCBOREncode_AddText(&cbor_encode, s_input_payload);
+
+    counter = 0;
+    do {
+        result = t_cose_sign1_encode_signature(&sign_ctx, &cbor_encode);
+        counter++;
+    } while(result == T_COSE_ERR_SIG_IN_PROGRESS);
+
+    if(result) {
+        if(result == T_COSE_ERR_UNSUPPORTED_RESTARTABLE_MODE) {
+            return 0;
+        }
+        return 2000 + (int32_t)result;
+    }
+    if(counter <= 1) {
+        return 3000;
+    }
+
+    qcbor_result = QCBOREncode_Finish(&cbor_encode, &signed_cose);
+    if(qcbor_result) {
+        return 4000 + (int32_t)qcbor_result;
+    }
+
+    /* --- Done making COSE Sign1 object  --- */
+
+    /* --- Start verifying the COSE Sign1 object  --- */
+    /* Select short circuit signing */
+    t_cose_sign1_verify_init(&verify_ctx, T_COSE_OPT_ALLOW_SHORT_CIRCUIT);
+    t_cose_sign1_set_verification_key(&verify_ctx, key_pair);
+
+    /* Run the signature verification */
+    result = t_cose_sign1_verify(&verify_ctx,
+                                 /* COSE to verify */
+                                 signed_cose,
+                                 /* The returned payload */
+                                 &payload,
+                                 /* Don't return parameters */
+                                 NULL);
+    if(result) {
+        return 5000 + (int32_t)result;
     }
 
 
