@@ -2,7 +2,7 @@
  * t_cose_psa_crypto.c
  *
  * Copyright 2019-2023, Laurence Lundblade
- * Copyright (c) 2020-2022, Arm Limited. All rights reserved.
+ * Copyright (c) 2020-2023, Arm Limited. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -226,7 +226,8 @@ t_cose_crypto_sign(int32_t                cose_algorithm_id,
                    void                  *crypto_context,
                    struct q_useful_buf_c  hash_to_sign,
                    struct q_useful_buf    signature_buffer,
-                   struct q_useful_buf_c *signature)
+                   struct q_useful_buf_c *signature,
+                   const bool            *started)
 {
     enum t_cose_err_t     return_value;
     psa_status_t          psa_result;
@@ -235,6 +236,10 @@ t_cose_crypto_sign(int32_t                cose_algorithm_id,
     size_t                signature_len;
 
     (void)crypto_context; /* This crypto-adapter doesn't use this */
+
+    if(started) {
+        return T_COSE_ERR_UNSUPPORTED_RESTARTABLE_MODE;
+    }
 
     psa_alg_id = cose_alg_id_to_psa_alg_id(cose_algorithm_id);
     if(!PSA_ALG_IS_ECDSA(psa_alg_id) && !PSA_ALG_IS_RSA_PSS(psa_alg_id)) {

@@ -2,7 +2,7 @@
  *  t_cose_openssl_crypto.c
  *
  * Copyright 2019-2023, Laurence Lundblade
- * Copyright (c) 2022, Arm Limited. All rights reserved.
+ * Copyright (c) 2022-2023, Arm Limited. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -648,7 +648,8 @@ t_cose_crypto_sign(const int32_t                cose_algorithm_id,
                    void                        *crypto_context,
                    const struct q_useful_buf_c  hash_to_sign,
                    const struct q_useful_buf    signature_buffer,
-                   struct q_useful_buf_c       *signature)
+                   struct q_useful_buf_c       *signature,
+                   const bool                  *started)
 {
     /* This is the overhead for the DER encoding of an EC signature as
      * described by ECDSA-Sig-Value in RFC 3279.  It is at max 3 * (1
@@ -664,6 +665,10 @@ t_cose_crypto_sign(const int32_t                cose_algorithm_id,
     int                    ossl_result;
 
     (void)crypto_context; /* This crypto adaptor doesn't use this */
+
+    if(started) {
+        return T_COSE_ERR_UNSUPPORTED_RESTARTABLE_MODE;
+    }
 
     /* This buffer is passed to OpenSSL to write the ECDSA signature into, in
      * DER format, before it can be converted to the expected COSE format. When

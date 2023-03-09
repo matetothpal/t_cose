@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2018-2023, Laurence Lundblade. All rights reserved.
  * Copyright (c) 2020, Michael Eckel
+ * Copyright (c) 2023, Arm Limited. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -69,7 +70,7 @@ extern "C" {
 /**
  * This is the context for creating a \c COSE_Sign1 or \c COSE_Sign structure. The
  * caller should allocate it and pass it to the functions here.  This
- * is about 36  bytes so it fits easily on the stack.
+ * is about 296 bytes so it fits on the stack.
  */
 struct t_cose_sign_sign_ctx {
     /* Private data structure */
@@ -77,6 +78,11 @@ struct t_cose_sign_sign_ctx {
     uint32_t                       option_flags;
     struct t_cose_signature_sign  *signers;
     struct t_cose_parameter       *added_body_parameters;
+    /* Fields related to restartable operation */
+    bool                           started;
+    QCBOREncodeContext             encode_context;
+    struct t_cose_signature_sign  *signer;
+    struct t_cose_sign_inputs      sign_inputs;
 };
 
 

@@ -2,6 +2,7 @@
  * t_cose_signature_sign_main.h
  *
  * Copyright (c) 2022, Laurence Lundblade. All rights reserved.
+ * Copyright (c) 2023, Arm Limited. All rights reserved.
  * Created by Laurence Lundblade on 5/23/22.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -23,6 +24,16 @@
 extern "C" {
 #endif
 
+/*
+ * This is the context for restartable signing.
+ */
+struct t_cose_signature_sign_main_restart_ctx {
+    bool                  started;
+    struct q_useful_buf_c tbs_hash;
+    uint8_t               c_buffer_for_tbs_hash[T_COSE_CRYPTO_MAX_HASH_SIZE];
+    struct q_useful_buf   buffer_for_tbs_hash;
+    struct q_useful_buf   buffer_for_signature;
+};
 
 struct t_cose_signature_sign_main {
     /* Private data structure */
@@ -41,6 +52,7 @@ struct t_cose_signature_sign_main {
     uint32_t                     option_flags; // TODO: use or get rid of
     struct t_cose_parameter      local_params[2];
     struct t_cose_parameter     *added_signer_params;
+    struct t_cose_signature_sign_main_restart_ctx *rst_ctx;
 };
 
 
@@ -52,6 +64,12 @@ void
 t_cose_signature_sign_main_init(struct t_cose_signature_sign_main *context,
                                  int32_t                             cose_algorithm_id);
 
+/*
+ * Set restartable operation for this signing context.
+ */
+void t_cose_signature_sign_main_set_restartable(
+                    struct t_cose_signature_sign_main *me,
+                    struct t_cose_signature_sign_main_restart_ctx *rst_context);
 
 /*
  * Set the signing key and kid. The kid may be NULL_Q_USEFUL_BUF_C.

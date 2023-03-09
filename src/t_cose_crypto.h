@@ -2,7 +2,7 @@
  * t_cose_crypto.h
  *
  * Copyright 2019-2022, Laurence Lundblade
- * Copyright (c) 2020-2022, Arm Limited. All rights reserved.
+ * Copyright (c) 2020-2023, Arm Limited. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -219,6 +219,13 @@ t_cose_crypto_sig_size(int32_t            cose_algorithm_id,
  *                              the resulting signature is put.
  * \param[in] signature         Pointer and length of the signature
  *                              returned.
+ * \param[in] started           If this pointer is not NULL, restartable
+ *                              operation is requested by the caller. If the
+ *                              value pointed by the pointer is false, that this
+ *                              is the first call of a signing operation. If it
+ *                              is true, this is a subsequent call. If the
+ *                              pointer is null, then one step signing is
+ *                              expected.
  *
  * \retval T_COSE_SUCCESS
  *         Successfully created the signature.
@@ -239,6 +246,11 @@ t_cose_crypto_sig_size(int32_t            cose_algorithm_id,
  *         General unspecific failure.
  * \retval T_COSE_ERR_TAMPERING_DETECTED
  *         Equivalent to \c PSA_ERROR_CORRUPTION_DETECTED.
+ * \retval T_COSE_ERR_SIG_IN_PROGRESS
+ *         Signing is in progress, the function needs to be called again with
+ *         the same parameters.
+ * \retval T_COSE_ERR_UNSUPPORTED_RESTARTABLE_MODE
+ *         Restartable signing is not implemented.
  *
  * This is called to do public key signing. The implementation will
  * vary from one platform / OS to another but should conform to the
@@ -265,7 +277,8 @@ t_cose_crypto_sign(int32_t                cose_algorithm_id,
                    void                  *crypto_context,
                    struct q_useful_buf_c  hash_to_sign,
                    struct q_useful_buf    signature_buffer,
-                   struct q_useful_buf_c *signature);
+                   struct q_useful_buf_c *signature,
+                   const bool            *started);
 
 
 /**
@@ -535,25 +548,6 @@ struct t_cose_crypto_hmac {
 };
 
 /**
- * The size of the output of SHA-256.
- *
- * (It is safe to define these independently here as they are
- * well-known and fixed. There is no need to reference
- * platform-specific headers and incur messy dependence.)
- */
-#define T_COSE_CRYPTO_SHA256_SIZE 32
-
-/**
- * The size of the output of SHA-384 in bytes.
- */
-#define T_COSE_CRYPTO_SHA384_SIZE 48
-
-/**
- * The size of the output of SHA-512 in bytes.
- */
-#define T_COSE_CRYPTO_SHA512_SIZE 64
-
-/**
  * Size of the signature (tag) output for the HMAC-SHA256.
  */
 #define T_COSE_CRYPTO_HMAC256_TAG_SIZE   T_COSE_CRYPTO_SHA256_SIZE
@@ -572,20 +566,6 @@ struct t_cose_crypto_hmac {
  * Max size of the tag output for the HMAC operations.
  */
 #define T_COSE_CRYPTO_HMAC_TAG_MAX_SIZE  T_COSE_CRYPTO_SHA512_SIZE
-
-/**
- * The maximum needed to hold a hash. It is smaller and less stack is needed
- * if the larger hashes are disabled.
- */
-#if !defined(T_COSE_DISABLE_ES512) || !defined(T_COSE_DISABLE_PS512)
-    #define T_COSE_CRYPTO_MAX_HASH_SIZE T_COSE_CRYPTO_SHA512_SIZE
-#else
-    #if !defined(T_COSE_DISABLE_ES384) || !defined(T_COSE_DISABLE_PS384)
-        #define T_COSE_CRYPTO_MAX_HASH_SIZE T_COSE_CRYPTO_SHA384_SIZE
-    #else
-        #define T_COSE_CRYPTO_MAX_HASH_SIZE T_COSE_CRYPTO_SHA256_SIZE
-    #endif
-#endif
 
 
 /**

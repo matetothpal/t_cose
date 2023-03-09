@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2018-2022, Laurence Lundblade. All rights reserved.
  * Copyright (c) 2020, Michael Eckel
+ * Copyright (c) 2023, Arm Limited. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -246,6 +247,33 @@ t_cose_sign1_sign_set_auxiliary_buffer(struct t_cose_sign1_sign_ctx *context,
 size_t
 t_cose_sign1_sign_auxiliary_buffer_size(struct t_cose_sign1_sign_ctx *context);
 
+/**
+ * \brief  Set restartable behaviour for the signing.
+ *
+ * \param[in] context             The t_cose signing context.
+ * \param[in] restartable_context A pointer to the restartable context for this
+ *                                signer.
+ */
+static inline enum t_cose_err_t
+t_cose_sign1_set_restart(struct t_cose_sign1_sign_ctx *context,
+                         void                         *restartable_context);
+
+/**
+ * \brief  Set the crypto context to be passed to the crypto library.
+ *
+ * \param[in] context         The signer context.
+ * \param[in] crypto_context  Pointer to the crypto context.
+ *
+ * The crypto context will be passed down to the crypto adapter
+ * layer. It can be used to configure special features, track special
+ * state or to return information for the crypto library.  The
+ * structure pointed to by the crypto context is specific to the
+ * crypto adapter that is in use. Many crypto adapters don't support
+ * this at all as it is not needed for most use cases.
+ */
+static inline enum t_cose_err_t
+t_cose_sign1_set_crypto_context(struct t_cose_sign1_sign_ctx *context,
+                                void                         *crypto_context);
 
 
 
@@ -663,6 +691,30 @@ t_cose_sign1_sign_aad_internal(struct t_cose_sign1_sign_ctx *me,
                                  aad,
                                  out_buf,
                                  result);
+}
+
+static inline enum t_cose_err_t
+t_cose_sign1_set_restart(struct t_cose_sign1_sign_ctx *me,
+                         void                         *restartable_context)
+{
+    if(me->cose_algorithm_id != T_COSE_ALGORITHM_EDDSA) {
+        t_cose_signature_sign_main_set_restartable(&(me->signer.general),
+                                                   restartable_context);
+        return T_COSE_SUCCESS;
+    }
+    return T_COSE_ERR_FAIL;
+}
+
+static inline enum t_cose_err_t
+t_cose_sign1_set_crypto_context(struct t_cose_sign1_sign_ctx *me,
+                                void                         *crypto_context)
+{
+    if(me->cose_algorithm_id != T_COSE_ALGORITHM_EDDSA) {
+        t_cose_signature_sign_main_set_crypto_context(&(me->signer.general),
+                                                      crypto_context);
+        return T_COSE_SUCCESS;
+    }
+    return T_COSE_ERR_FAIL;
 }
 
 

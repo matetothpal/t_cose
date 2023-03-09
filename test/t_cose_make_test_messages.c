@@ -2,6 +2,7 @@
  * t_cose_make_test_messages.c
  *
  * Copyright (c) 2019-2022, Laurence Lundblade. All rights reserved.
+ * Copyright (c) 2023, Arm Limited. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -500,7 +501,8 @@ t_cose_sign1_test_message_output_signature(struct t_cose_sign1_sign_ctx *me,
                                       NULL, /* no crypto-context here */
                                       tbs_hash,
                                       buffer_for_signature,
-                                     &signature);
+                                     &signature,
+                                      NULL); /* Don't use restartable mode */
 
     if(return_value) {
         goto Done;

@@ -2,7 +2,7 @@
  run_tests.c -- test aggregator and results reporting
 
  Copyright (c) 2018-2022, Laurence Lundblade. All rights reserved.
- Copyright (c) 2022 Arm Limited. All rights reserved.
+ Copyright (c) 2022-2023 Arm Limited. All rights reserved.
 
  SPDX-License-Identifier: BSD-3-Clause
 
@@ -348,14 +348,14 @@ void PrintSizesTCose(OutputStringCB pfOutput, void *pOutCtx)
     PrintSize("sizeof(struct t_cose_sign1_ctx)",
               (uint32_t)sizeof(struct t_cose_sign1_sign_ctx),
               pfOutput, pOutCtx);
+    PrintSize("sizeof(struct t_cose_sign_sign_ctx)",
+              (uint32_t)sizeof(struct t_cose_sign_sign_ctx),
+              pfOutput, pOutCtx);
     PrintSize("sizeof(struct t_cose_key)",
               (uint32_t)sizeof(struct t_cose_key),
               pfOutput, pOutCtx);
     PrintSize("sizeof(struct t_cose_crypto_hash)",
               (uint32_t)sizeof(struct t_cose_crypto_hash),
-              pfOutput, pOutCtx);
-    PrintSize("sizeof(struct t_cose_parameters)",
-              (uint32_t)sizeof(struct t_cose_parameters),
               pfOutput, pOutCtx);
     PrintSize("sizeof(struct t_cose_sign1_verify_ctx)",
               (uint32_t)sizeof(struct t_cose_sign1_verify_ctx),

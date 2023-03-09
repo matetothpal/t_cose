@@ -2,7 +2,7 @@
  *  t_cose_test_crypto.c
  *
  * Copyright 2019-2023, Laurence Lundblade
- * Copyright (c) 2022, Arm Limited. All rights reserved.
+ * Copyright (c) 2022-2023, Arm Limited. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -124,7 +124,8 @@ t_cose_crypto_sign(int32_t                cose_algorithm_id,
                    void                  *crypto_context,
                    struct q_useful_buf_c  hash_to_sign,
                    struct q_useful_buf    signature_buffer,
-                   struct q_useful_buf_c *signature)
+                   struct q_useful_buf_c *signature,
+                   const bool            *started)
 {
     enum t_cose_err_t return_value;
     size_t            array_index;
@@ -135,6 +136,10 @@ t_cose_crypto_sign(int32_t                cose_algorithm_id,
     /* This is used for testing the crypto context */
     if(cc != NULL && cc->test_error != T_COSE_SUCCESS) {
         return cc->test_error;
+    }
+
+    if(started) {
+        return T_COSE_ERR_UNSUPPORTED_RESTARTABLE_MODE;
     }
 
     /* This makes the short-circuit signature that is a concatenation
